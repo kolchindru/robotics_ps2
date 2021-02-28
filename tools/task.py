@@ -161,6 +161,6 @@ def get_gaussian_statistics(samples):
     # Compute the samples covariance.
     mu_0 = samples - np.tile(mu, (samples.shape[0], 1))
     mu_0[:, 2] = np.array([wrap_angle(angle) for angle in mu_0[:, 2]])
-    Sigma = mu_0.T @ mu_0 / samples.shape[0]
+    Sigma = mu_0.T @ mu_0 / (samples.shape[0]-1)
 
     return Gaussian(mu, Sigma)

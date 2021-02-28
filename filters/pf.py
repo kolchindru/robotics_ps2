@@ -23,17 +23,21 @@ class PF(LocalizationFilter):
         # TODO add here specific class variables for the PF
         self.M = num_particles
         self.X = multivariate_normal(self.mu, self.Sigma, self.M)
+        if global_localization:
+            self.M *= 10
+            self.X = np.zeros((self.M, 3))
+            self.X[:, 0] = uniform(0, self._field_map._complete_size_x, self.M)
+            self.X[:, 1] = uniform(0, self._field_map._complete_size_y, self.M)
+            self.X[:, 2] = uniform(-np.pi, np.pi, self.M)
+            self._state.mu = np.mean(self.X, axis=0)[np.newaxis].T
+            self._state.Sigma = np.diag(np.var(self.X, axis=0))
         self.w = np.ones(self.M)/sum(np.ones(self.M))
-        self.gl = global_localization
 
 
     def predict(self, u):
         # TODO Implement here the PF, perdiction part
         for i in range(self.M):
             self.X[i] = sample_from_odometry(self.X[i], u, self._alphas)
-
-        # self._state_bar.mu = self.mu
-        # self._state_bar.Sigma = self.Sigma
 
     def update(self, z):
         distances = np.zeros((self.M))
@@ -43,14 +47,23 @@ class PF(LocalizationFilter):
         self.w *= distances_pdf.pdf(distances)
         self.w = self.w/sum(self.w)
 
-        # Resample
-        cum_dist = np.cumsum(self.w)
-        cum_dist[-1] = 1.
 
-        indexes = np.searchsorted(cum_dist, np.random.uniform(0, 1, self.M))
+        # Systematic_resampling (said to be efficient in most situations)
+        positions = (np.arange(self.M) + np.random.uniform(0, 1)) / self.M
+        indexes = np.zeros(self.M, 'i')
+        cum_dist = np.cumsum(self.w)
+        i, j = 0, 0
+        while i < self.M:
+            if positions[i] < cum_dist[j]:
+                indexes[i] = j
+                i += 1
+            else:
+                j += 1
+
         self.X[:] = self.X[indexes]
         self.w.fill(1.0/self.M)
 
         np.random.shuffle(self.X)
-        self._state.mu = np.mean(self.X, axis=0)[np.newaxis].T
-        self._state.Sigma = np.diag(np.var(self.X, axis=0))
+        stats = get_gaussian_statistics(self.X)
+        self._state.mu = stats.mu
+        self._state.Sigma = stats.Sigma

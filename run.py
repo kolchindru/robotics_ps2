@@ -186,7 +186,6 @@ def main():
         localization_filter = EKF(initial_state, alphas, beta)
     elif args.filter_name == 'pf':
         localization_filter = PF(initial_state, alphas, beta, args.num_particles, args.global_localization)
-    print(localization_filter)
     fig = None
     if show_plots or write_movie:
         fig = plt.figure(1)
