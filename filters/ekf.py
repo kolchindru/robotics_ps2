@@ -9,6 +9,7 @@ from tools.task import get_motion_noise_covariance
 from tools.task import get_observation as get_expected_observation
 from tools.task import get_prediction
 from tools.task import wrap_angle
+from field_map import FieldMap
 
 
 class EKF(LocalizationFilter):
@@ -40,22 +41,22 @@ class EKF(LocalizationFilter):
 
     def update(self, z):
         # TODO implement correction step
-
         mu_bar = self.mu_bar
         Sigma_bar = self.Sigma_bar
 
         land_x = self._field_map.landmarks_poses_x[int(z[-1])]
         land_y = self._field_map.landmarks_poses_y[int(z[-1])]
-        H = np.array([
+        H = np.array([[
             (land_y - mu_bar[1])/((land_x - mu_bar[0]) ** 2 + (land_y - mu_bar[1]) ** 2),
             -(land_x - mu_bar[0])/((land_x - mu_bar[0]) ** 2 + (land_y - mu_bar[1]) ** 2),
             -1
-        ])
+        ]])
 
-        innovation = z - get_expected_observation(mu_bar, z[-1])
+        innovation = wrap_angle((z - get_expected_observation(mu_bar, z[-1]))[0])
         K = Sigma_bar @ H.T / (H @ Sigma_bar @ H.T + self._Q)
-        mu = mu_bar + K * innovation[0]
-        Sigma = (np.eye(self.state_dim) - np.outer(K, H)) @ Sigma_bar
+        mu = mu_bar + K.reshape(-1) * innovation
+        # mu[-1] = wrap_angle(mu[-1])
+        Sigma = (np.eye(self.state_dim) - K @ H) @ Sigma_bar
 
         self._state.mu = mu[np.newaxis].T
         self._state.Sigma = Sigma
