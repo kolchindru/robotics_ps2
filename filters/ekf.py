@@ -55,7 +55,7 @@ class EKF(LocalizationFilter):
         innovation = z - get_expected_observation(mu_bar, z[-1])
         K = Sigma_bar @ H.T / (H @ Sigma_bar @ H.T + self._Q)
         mu = mu_bar + K * innovation[0]
-        Sigma = (np.eye(3) - np.outer(K, H)) @ Sigma_bar
+        Sigma = (np.eye(self.state_dim) - np.outer(K, H)) @ Sigma_bar
 
         self._state.mu = mu[np.newaxis].T
         self._state.Sigma = Sigma
