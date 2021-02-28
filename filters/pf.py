@@ -21,8 +21,9 @@ class PF(LocalizationFilter):
     def __init__(self, initial_state, alphas, beta, num_particles, global_localization):
         super(PF, self).__init__(initial_state, alphas, beta)
         # TODO add here specific class variables for the PF
-        self.M = num_particles
+        self.M = num_particles * 5
         self.X = multivariate_normal(self.mu, self.Sigma, self.M)
+        self.global_loc = global_localization
         if global_localization:
             self.X = np.zeros((self.M, 3))
             self.X[:, 0] = uniform(0, self._field_map._complete_size_x, self.M)
@@ -35,6 +36,10 @@ class PF(LocalizationFilter):
         # TODO Implement here the PF, perdiction part
         for i in range(self.M):
             self.X[i] = sample_from_odometry(self.X[i], u, self._alphas)
+        stats = get_gaussian_statistics(self.X)
+        if not self.global_loc:
+            self._state_bar.mu = stats.mu
+            self._state_bar.Sigma = stats.Sigma
 
     def update(self, z):
         self.w = np.zeros((self.M))
@@ -57,8 +62,9 @@ class PF(LocalizationFilter):
                 j += 1
 
         self.X[:] = self.X[indexes]
+        self.X[:, -1] = np.array([wrap_angle(x) for x in self.X[:, -1]])
         self.w.fill(1.0/self.M)
-        np.random.shuffle(self.X)
+        # np.random.shuffle(self.X)
         stats = get_gaussian_statistics(self.X)
         self._state.mu = stats.mu
         self._state.Sigma = stats.Sigma
